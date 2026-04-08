@@ -4,9 +4,9 @@ const axios = require("axios");
 const BOT_TOKEN = "8643206314:AAG4W1fqTepqktrE_xzxbn4KI9GY1x1X188";
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
-const DIPTO_API = "https://mostakim-3nrz.onrender.com";
-const MAHMUD_API = "https://mahmud-infinity-api.onrender.com";
-const YTB_API = "https://ytb-five.vercel.app";
+const DOWNLOAD_API = "https://raw.githubusercontent.com/Mostakim0978/D1PT0/main/baseApiUrl.json";
+const BBY_API = "https://raw.githubusercontent.com/mahmudx7/HINATA/main/baseApiUrl.json";
+const YTB_API = "https://raw.githubusercontent.com/Mostakim0978/D1PT0/main/baseApiUrl.json";
 
 // ─────────────────────────────────────────
 //  HELPER: detect platform from URL
