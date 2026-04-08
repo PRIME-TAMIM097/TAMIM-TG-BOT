@@ -2,8 +2,10 @@ services:
   - type: worker
     name: tamim-tg-bot
     runtime: node
-    buildCommand: npm install
+    buildCommand: npm install && pip3 install yt-dlp
     startCommand: node index.js
     envVars:
       - key: NODE_ENV
         value: production
+      - key: GEMINI_API_KEY
+        sync: false
