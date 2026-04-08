@@ -1,14 +1,16 @@
 const TelegramBot = require("node-telegram-bot-api");
 const axios = require("axios");
-const { execFile } = require("child_process");
-const fs = require("fs");
-const path = require("path");
 
 const BOT_TOKEN = "8643206314:AAG4W1fqTepqktrE_xzxbn4KI9GY1x1X188";
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
-
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
+const DIPTO_API = "https://mostakim-3nrz.onrender.com";
+const MAHMUD_API = "https://mahmud-infinity-api.onrender.com";
+const YTB_API = "https://ytb-five.vercel.app";
+
+// ─────────────────────────────────────────
+//  HELPER: detect platform from URL
+// ─────────────────────────────────────────
 function detectPlatform(url) {
   if (/youtube\.com|youtu\.be/i.test(url)) return "youtube";
   if (/facebook\.com|fb\.watch/i.test(url)) return "facebook";
@@ -17,21 +19,30 @@ function detectPlatform(url) {
   return null;
 }
 
-// ─── /start ───
+// ─────────────────────────────────────────
+//  HELPER: send loading message
+// ─────────────────────────────────────────
+async function sendLoading(chatId, text = "⏳ Processing...") {
+  return bot.sendMessage(chatId, text);
+}
+
+// ─────────────────────────────────────────
+//  /start command
+// ─────────────────────────────────────────
 bot.onText(/\/start/, (msg) => {
   const name = msg.from.first_name || "Friend";
-  bot.sendMessage(msg.chat.id,
+  bot.sendMessage(
+    msg.chat.id,
     `✨ *Welcome, ${name}!*\n\n` +
-    `🤖 I'm *TAMIM BOT* — your Telegram assistant!\n\n` +
+    `🤖 I'm *TAMIM BOT* — your all-in-one Telegram assistant!\n\n` +
     `━━━━━━━━━━━━━━━━\n` +
     `📥 *Video Download*\n` +
     `➜ Just send any video link!\n` +
-    `➜ YouTube, Facebook, TikTok, Instagram\n\n` +
+    `Supports: YouTube, Facebook, TikTok, Instagram\n\n` +
     `💬 *AI Chat*\n` +
-    `➜ /chat <your message>\n` +
-    `➜ Or just text me anything!\n\n` +
+    `➜ /chat <your message>\n\n` +
     `📋 *Commands*\n` +
-    `➜ /help — All commands\n` +
+    `➜ /help — See all commands\n` +
     `➜ /dl <url> — Download video\n` +
     `➜ /chat <msg> — Chat with AI\n` +
     `━━━━━━━━━━━━━━━━\n` +
@@ -40,149 +51,229 @@ bot.onText(/\/start/, (msg) => {
   );
 });
 
-// ─── /help ───
+// ─────────────────────────────────────────
+//  /help command
+// ─────────────────────────────────────────
 bot.onText(/\/help/, (msg) => {
-  bot.sendMessage(msg.chat.id,
+  bot.sendMessage(
+    msg.chat.id,
     `📋 *TAMIM BOT — Help Menu*\n\n` +
     `━━━━━━━━━━━━━━━━\n` +
     `📥 *Downloader*\n` +
-    `➜ /dl <url> — Download video\n` +
-    `➜ Or just send the link directly!\n\n` +
+    `➜ /dl <url>\n` +
+    `➜ or just send the link directly\n\n` +
     `🌐 *Supported Platforms*\n` +
-    `➜ YouTube\n➜ Facebook\n➜ TikTok\n➜ Instagram\n\n` +
+    `➜ YouTube\n` +
+    `➜ Facebook\n` +
+    `➜ TikTok\n` +
+    `➜ Instagram\n\n` +
     `💬 *AI Chat*\n` +
-    `➜ /chat <message>\n` +
-    `➜ Or just send any text!\n` +
+    `➜ /chat <your message>\n\n` +
     `━━━━━━━━━━━━━━━━\n` +
-    `_TAMIM BOT v2.0_`,
+    `_TAMIM BOT v1.0_`,
     { parse_mode: "Markdown" }
   );
 });
 
-// ─── /dl ───
+// ─────────────────────────────────────────
+//  VIDEO DOWNLOADER — /dl command
+// ─────────────────────────────────────────
 bot.onText(/\/dl (.+)/, async (msg, match) => {
-  await handleDownload(msg.chat.id, match[1].trim());
+  const chatId = msg.chat.id;
+  const url = match[1].trim();
+  await handleDownload(chatId, url);
 });
 
-// ─── /chat ───
-bot.onText(/\/chat (.+)/, async (msg, match) => {
-  await handleChat(msg.chat.id, match[1].trim(), msg.from.first_name || "Friend");
-});
-
-// ─── Auto detect ───
+// ─────────────────────────────────────────
+//  VIDEO DOWNLOADER — auto detect link in message
+// ─────────────────────────────────────────
 bot.on("message", async (msg) => {
+  const chatId = msg.chat.id;
   const text = msg.text || "";
+
+  // skip if it's a command
   if (text.startsWith("/")) return;
 
+  // check if message contains a supported video URL
   const urlMatch = text.match(/https?:\/\/[^\s]+/);
-  if (urlMatch && detectPlatform(urlMatch[0])) {
-    await handleDownload(msg.chat.id, urlMatch[0]);
-    return;
+  if (urlMatch) {
+    const url = urlMatch[0];
+    const platform = detectPlatform(url);
+    if (platform) {
+      await handleDownload(chatId, url);
+      return;
+    }
   }
 
+  // if no URL, treat as AI chat
   if (text.trim()) {
-    await handleChat(msg.chat.id, text.trim(), msg.from.first_name || "Friend");
+    await handleChat(chatId, text.trim(), msg.from.first_name || "Friend");
   }
 });
 
-// ─── DOWNLOAD HANDLER ───
+// ─────────────────────────────────────────
+//  /chat command
+// ─────────────────────────────────────────
+bot.onText(/\/chat (.+)/, async (msg, match) => {
+  const chatId = msg.chat.id;
+  const query = match[1].trim();
+  await handleChat(chatId, query, msg.from.first_name || "Friend");
+});
+
+// ─────────────────────────────────────────
+//  DOWNLOAD HANDLER
+// ─────────────────────────────────────────
 async function handleDownload(chatId, url) {
   const platform = detectPlatform(url);
+
   if (!platform) {
     return bot.sendMessage(chatId,
-      `❌ *Unsupported link!*\nSupported: YouTube, Facebook, TikTok, Instagram`,
+      `❌ *Unsupported link!*\n\n` +
+      `Supported: YouTube, Facebook, TikTok, Instagram`,
       { parse_mode: "Markdown" }
     );
   }
 
-  const loading = await bot.sendMessage(chatId,
-    `⏳ *Downloading...*\nPlatform: \`${platform.toUpperCase()}\``,
-    { parse_mode: "Markdown" }
+  const loading = await sendLoading(chatId,
+    `⏳ *Fetching video...*\nPlatform: ${platform.toUpperCase()}`,
   );
 
-  const tmpFile = path.join("/tmp", `tamim_${Date.now()}.mp4`);
-
   try {
-    await new Promise((resolve, reject) => {
-      execFile("yt-dlp", [
-        "-f", "best[ext=mp4]/best",
-        "--no-playlist",
-        "--max-filesize", "49m",
-        "-o", tmpFile,
-        url
-      ], { timeout: 120000 }, (err, stdout, stderr) => {
-        if (err) return reject(new Error(stderr || err.message));
-        resolve();
+    let videoUrl = null;
+    let title = "Video";
+    let thumb = null;
+
+    // ── YouTube ──
+    if (platform === "youtube") {
+      const res = await axios.get(`${YTB_API}/ytdl`, {
+        params: { url },
+        timeout: 30000
       });
-    });
+      const data = res.data;
+      videoUrl = data?.video || data?.url || data?.downloadUrl || data?.result?.url;
+      title = data?.title || "YouTube Video";
+      thumb = data?.thumbnail || data?.thumb;
+    }
+
+    // ── Facebook ──
+    else if (platform === "facebook") {
+      const res = await axios.get(`${DIPTO_API}/fbdl`, {
+        params: { url },
+        timeout: 30000
+      });
+      const data = res.data;
+      videoUrl = data?.hd || data?.sd || data?.url || data?.result?.hd || data?.result?.sd;
+      title = data?.title || "Facebook Video";
+      thumb = data?.thumbnail || data?.thumb;
+    }
+
+    // ── TikTok ──
+    else if (platform === "tiktok") {
+      const res = await axios.get(`${DIPTO_API}/tiktokdl`, {
+        params: { url },
+        timeout: 30000
+      });
+      const data = res.data;
+      videoUrl = data?.video || data?.url || data?.noWatermark || data?.result?.url;
+      title = data?.title || "TikTok Video";
+      thumb = data?.thumbnail || data?.cover;
+    }
+
+    // ── Instagram ──
+    else if (platform === "instagram") {
+      const res = await axios.get(`${DIPTO_API}/igdl`, {
+        params: { url },
+        timeout: 30000
+      });
+      const data = res.data;
+      videoUrl = data?.video || data?.url || data?.result?.url;
+      title = data?.title || "Instagram Video";
+      thumb = data?.thumbnail || data?.thumb;
+    }
 
     await bot.deleteMessage(chatId, loading.message_id).catch(() => {});
 
-    if (!fs.existsSync(tmpFile)) {
-      return bot.sendMessage(chatId, `❌ *Download failed!*`, { parse_mode: "Markdown" });
+    if (!videoUrl) {
+      return bot.sendMessage(chatId,
+        `❌ *Download failed!*\n\nCould not extract video URL.\nTry a different link.`,
+        { parse_mode: "Markdown" }
+      );
     }
 
-    await bot.sendVideo(chatId, tmpFile, {
-      caption: `✅ *Downloaded successfully!*\n\n_TAMIM BOT_`,
+    await bot.sendMessage(chatId,
+      `✅ *Video found!*\n\n📌 *${title}*\n\n⏳ Sending video...`,
+      { parse_mode: "Markdown" }
+    );
+
+    await bot.sendVideo(chatId, videoUrl, {
+      caption: `🎬 *${title}*\n\n_Downloaded by TAMIM BOT_`,
       parse_mode: "Markdown",
       supports_streaming: true
     });
 
-    fs.unlinkSync(tmpFile);
-
   } catch (err) {
     await bot.deleteMessage(chatId, loading.message_id).catch(() => {});
-    if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
     console.error("Download error:", err.message);
     bot.sendMessage(chatId,
-      `❌ *Download failed!*\n\n\`${err.message.slice(0, 200)}\``,
+      `❌ *Error occurred!*\n\n\`${err.message}\`\n\nTry again later.`,
       { parse_mode: "Markdown" }
     );
   }
 }
 
-// ─── CHAT HANDLER ───
+// ─────────────────────────────────────────
+//  CHAT HANDLER
+// ─────────────────────────────────────────
 async function handleChat(chatId, query, name) {
-  if (!GEMINI_API_KEY) {
-    return bot.sendMessage(chatId,
-      `❌ *AI not configured!*\nSet \`GEMINI_API_KEY\` in environment variables.\nGet free key: https://aistudio.google.com/`,
-      { parse_mode: "Markdown" }
-    );
-  }
-
-  const loading = await bot.sendMessage(chatId, `💭 *Thinking...*`, { parse_mode: "Markdown" });
+  const loading = await sendLoading(chatId, "💭 *Thinking...*");
 
   try {
-    const res = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        contents: [{
-          parts: [{
-            text: `You are a friendly cute AI assistant named "Baby Bot" created by Tamim. Reply in a warm and helpful way. User name: ${name}\n\nUser: ${query}`
-          }]
-        }]
-      },
-      { timeout: 30000 }
-    );
+    // Try Mahmud Gemini AI endpoint
+    const res = await axios.get(`${MAHMUD_API}/gemini`, {
+      params: { query, name },
+      timeout: 30000
+    });
 
     await bot.deleteMessage(chatId, loading.message_id).catch(() => {});
 
-    const reply = res.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!reply) return bot.sendMessage(chatId, `❌ No response from AI.`);
+    const data = res.data;
+    const reply = data?.response || data?.reply || data?.result || data?.message || data?.answer;
+
+    if (!reply) {
+      return bot.sendMessage(chatId,
+        `❌ No response from AI. Try again!`
+      );
+    }
 
     bot.sendMessage(chatId,
-      `💬 *Baby Bot*\n\n${reply}`,
+      `💬 *AI Response*\n\n${reply}`,
       { parse_mode: "Markdown" }
     );
 
   } catch (err) {
     await bot.deleteMessage(chatId, loading.message_id).catch(() => {});
     console.error("Chat error:", err.message);
+
+    // fallback to JAN API
+    try {
+      const res2 = await axios.get(`${MAHMUD_API}/jan`, {
+        params: { query, name },
+        timeout: 20000
+      });
+      const reply2 = res2.data?.response || res2.data?.reply || res2.data?.result;
+      if (reply2) {
+        return bot.sendMessage(chatId,
+          `💬 *AI Response*\n\n${reply2}`,
+          { parse_mode: "Markdown" }
+        );
+      }
+    } catch (_) {}
+
     bot.sendMessage(chatId,
-      `❌ *AI Error!*\n\`${err.message.slice(0, 200)}\``,
+      `❌ *AI Error!*\n\n\`${err.message}\`\n\nTry again later.`,
       { parse_mode: "Markdown" }
     );
   }
 }
 
-console.log("🤖 TAMIM BOT v2.0 is running...");
+console.log("🤖 TAMIM BOT is running...");
