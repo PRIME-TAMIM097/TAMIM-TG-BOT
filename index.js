@@ -9,11 +9,18 @@ const streamPipeline = promisify(pipeline);
 const BOT_TOKEN = "8643206314:AAG4W1fqTepqktrE_xzxbn4KI9GY1x1X188";
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
-// ─────────────────────────────────────────
-//  DOWNLOAD API (from autodl.js)
-// ─────────────────────────────────────────
+// ─── APIS ───
 const DOWNLOAD_API = "https://xsaim8x-xxx-api.onrender.com/api/auto";
 
+let cachedApiUrl = null;
+const getBaseApiUrl = async () => {
+  if (cachedApiUrl) return cachedApiUrl;
+  const res = await axios.get("https://raw.githubusercontent.com/mahmudx7/HINATA/main/baseApiUrl.json");
+  cachedApiUrl = res.data.mahmud;
+  return cachedApiUrl;
+};
+
+// ─── DOMAINS (autodl.js) ───
 const DOMAINS = [
   "facebook.com", "fb.watch", "fb.com",
   "youtube.com", "youtu.be",
@@ -25,29 +32,18 @@ const DOMAINS = [
   "likee.com", "likee.video"
 ];
 
-// ─────────────────────────────────────────
-//  BABY CHAT API (from baby.js)
-// ─────────────────────────────────────────
-let cachedApiUrl = null;
-const getBaseApiUrl = async () => {
-  if (cachedApiUrl) return cachedApiUrl;
-  const res = await axios.get("https://raw.githubusercontent.com/mahmudx7/HINATA/main/baseApiUrl.json");
-  cachedApiUrl = res.data.mahmud;
-  return cachedApiUrl;
-};
-
-// baby trigger words (from baby.js)
+// ─── BABY TRIGGERS (baby.js) ───
 const BABY_TRIGGERS = [
   "baby", "bby", "babu", "bbu", "jan", "bot",
   "জান", "জানু", "বেবি", "wifey", "marin"
 ];
 
-// random replies when only trigger word sent (from baby.js)
+// ─── RANDOM REPLIES (baby.js) ───
 const RANDOM_REPLIES = [
-  "Bolo baby 😒", "I love you 😘", "type /chat hi",
+  "Bolo baby 😒", "I love you 😘",
   "babu khuda lagse🥺", "Hop beda😾, Boss বল boss😼",
   "আমাকে ডাকলে কিস করে দেবো😘",
-  "mb ney bye", "meww",
+  "mb ney bye", "meww 🐤",
   "বলো কি বলবা, সবার সামনে বলবা নাকি?🤭🤏",
   "𝗜 𝗹𝗼𝘃𝗲 𝘆𝗼𝘂__😘😘", "𝗜 𝗵𝗮𝘁𝗲 𝘆𝗼𝘂__😏😏",
   "গোসল করে আসো যাও😑😩",
@@ -70,12 +66,31 @@ const RANDOM_REPLIES = [
   "কি হলো, মিস টিস করচ্ছো নাকি 🤣",
   "আমি হাজারো মশার Crush😓",
   "ছেলেদের প্রতি আমার এক আকাশ পরিমান শরম🥹🫣",
-  "মন সুন্দর বানাও মুখের জন্য তো Snapchat আছেই! 🌚"
+  "মন সুন্দর বানাও মুখের জন্য তো Snapchat আছেই! 🌚",
+  "বার বার Disturb করেছিস, আমার জানুর সাথে ব্যাস্ত আসি 😋",
+  "এই এই তোর পরীক্ষা কবে? শুধু 𝗕𝗯𝘆 করিস 😾",
+  "হটাৎ আমাকে মনে পড়লো 🙄",
+  "আমাকে না দেকে একটু পড়তে বসতেও তো পারো 🥺",
+  "ভুলে জাও আমাকে 😞",
+  "দেখা হলে কাঠগোলাপ দিও..🤗",
+  "বলো কি করতে পারি তোমার জন্য 😚",
+  "Meow🐤", "oi mama ar dakis na pilis 😿",
+  "একটা BF খুঁজে দাও 😿",
+  "𝗕𝗯𝘆 না বলে 𝗕𝗼𝘄 বলো 😘"
 ];
 
-// ─────────────────────────────────────────
-//  HELPER: detect platform
-// ─────────────────────────────────────────
+// ─── reply tracking (baby.js onReply system) ───
+const replyMap = new Map();
+
+function trackReply(messageId) {
+  replyMap.set(messageId, true);
+  if (replyMap.size > 300) {
+    const first = replyMap.keys().next().value;
+    replyMap.delete(first);
+  }
+}
+
+// ─── HELPERS ───
 function detectPlatform(url) {
   if (/youtube\.com|youtu\.be/i.test(url)) return "𝐘𝐨𝐮𝐓𝐮𝐛𝐞";
   if (/facebook\.com|fb\.watch|fb\.com/i.test(url)) return "𝐅𝐚𝐜𝐞𝐛𝐨𝐨𝐤";
@@ -84,16 +99,14 @@ function detectPlatform(url) {
   if (/spotify\.com/i.test(url)) return "Spotify";
   if (/soundcloud\.com/i.test(url)) return "SoundCloud";
   if (/twitter\.com|x\.com/i.test(url)) return "Twitter/X";
-  return null;
+  return "Media";
 }
 
 function isVideoLink(text) {
   return DOMAINS.some(d => text.toLowerCase().includes(d));
 }
 
-// ─────────────────────────────────────────
-//  /start
-// ─────────────────────────────────────────
+// ─── /start ───
 bot.onText(/\/start/, (msg) => {
   const name = msg.from.first_name || "Friend";
   bot.sendMessage(msg.chat.id,
@@ -103,9 +116,9 @@ bot.onText(/\/start/, (msg) => {
     `📥 *Video Download*\n` +
     `➜ Just send any video link!\n` +
     `➜ YouTube, Facebook, TikTok, Instagram & more\n\n` +
-    `💬 *AI Chat*\n` +
+    `💬 *Baby Chat*\n` +
     `➜ Say: bby, baby, jan, bot...\n` +
-    `➜ Or use /chat <message>\n\n` +
+    `➜ Reply to my messages to keep chatting!\n\n` +
     `📋 *Commands*\n` +
     `➜ /help — All commands\n` +
     `➜ /dl <url> — Download video\n` +
@@ -116,76 +129,76 @@ bot.onText(/\/start/, (msg) => {
   );
 });
 
-// ─────────────────────────────────────────
-//  /help
-// ─────────────────────────────────────────
+// ─── /help ───
 bot.onText(/\/help/, (msg) => {
   bot.sendMessage(msg.chat.id,
     `📋 *TAMIM BOT — Help Menu*\n\n` +
     `━━━━━━━━━━━━━━━━\n` +
     `📥 *Downloader*\n` +
-    `➜ /dl <url>\n` +
+    `➜ /dl <url> — Download video\n` +
     `➜ Or just send the link!\n\n` +
     `🌐 *Supported Platforms*\n` +
     `➜ YouTube, Facebook, TikTok\n` +
     `➜ Instagram, Twitter, Spotify & more\n\n` +
-    `💬 *AI Chat (Baby Bot)*\n` +
+    `💬 *Baby Chat*\n` +
     `➜ /chat <message>\n` +
     `➜ Say: bby, baby, jan, bot...\n` +
+    `➜ Reply to bot messages to keep chatting!\n` +
     `━━━━━━━━━━━━━━━━\n` +
     `_TAMIM BOT v2.0_`,
     { parse_mode: "Markdown" }
   );
 });
 
-// ─────────────────────────────────────────
-//  /dl command
-// ─────────────────────────────────────────
+// ─── /dl ───
 bot.onText(/\/dl (.+)/, async (msg, match) => {
   await handleDownload(msg.chat.id, match[1].trim());
 });
 
-// ─────────────────────────────────────────
-//  /chat command
-// ─────────────────────────────────────────
+// ─── /chat ───
 bot.onText(/\/chat (.+)/, async (msg, match) => {
-  await handleBabyChat(msg.chat.id, match[1].trim());
+  await handleBabyChat(msg.chat.id, match[1].trim(), msg.message_id);
 });
 
-// ─────────────────────────────────────────
-//  Auto detect message
-// ─────────────────────────────────────────
+// ─── AUTO DETECT (video link + baby trigger + onReply) ───
 bot.on("message", async (msg) => {
   const text = msg.text || "";
   if (text.startsWith("/")) return;
 
-  // 1. Check if video link
+  const lower = text.toLowerCase().trim();
+
+  // 1. Video link check
   const urlMatch = text.match(/https?:\/\/[^\s]+/);
   if (urlMatch && isVideoLink(urlMatch[0])) {
     await handleDownload(msg.chat.id, urlMatch[0]);
     return;
   }
 
-  // 2. Check if baby trigger word
-  const lower = text.toLowerCase().trim();
+  // 2. onReply — user replied to bot message (baby.js onReply logic)
+  if (msg.reply_to_message && replyMap.has(msg.reply_to_message.message_id)) {
+    await handleBabyChat(msg.chat.id, lower || "meow", msg.message_id);
+    return;
+  }
+
+  // 3. Baby trigger word (baby.js onChat logic)
   const matchedTrigger = BABY_TRIGGERS.find(w => lower.startsWith(w));
   if (matchedTrigger) {
     const afterTrigger = lower.substring(matchedTrigger.length).trim();
     if (!afterTrigger) {
-      // only trigger word — send random reply (from baby.js onChat logic)
+      // only trigger word → random reply
       const reply = RANDOM_REPLIES[Math.floor(Math.random() * RANDOM_REPLIES.length)];
-      return bot.sendMessage(msg.chat.id, reply);
+      const sent = await bot.sendMessage(msg.chat.id, reply, {
+        reply_to_message_id: msg.message_id
+      });
+      trackReply(sent.message_id);
     } else {
-      // trigger + message — send to hinata API
-      await handleBabyChat(msg.chat.id, afterTrigger);
-      return;
+      // trigger + message → hinata API
+      await handleBabyChat(msg.chat.id, afterTrigger, msg.message_id);
     }
   }
 });
 
-// ─────────────────────────────────────────
-//  DOWNLOAD HANDLER (autodl.js logic)
-// ─────────────────────────────────────────
+// ─── DOWNLOAD HANDLER ───
 async function handleDownload(chatId, url) {
   if (!isVideoLink(url)) {
     return bot.sendMessage(chatId,
@@ -194,39 +207,32 @@ async function handleDownload(chatId, url) {
     );
   }
 
-  const platform = detectPlatform(url) || "Media";
+  const platform = detectPlatform(url);
   const loading = await bot.sendMessage(chatId,
     `♻️ *Downloading...*\nPlatform: ${platform}`,
     { parse_mode: "Markdown" }
   );
 
-  const tmpDir = "/tmp";
   const isAudio = url.includes("spotify") || url.includes("soundcloud");
   const ext = isAudio ? "mp3" : "mp4";
-  const filePath = path.join(tmpDir, `tamim_${Date.now()}.${ext}`);
+  const filePath = path.join("/tmp", `tamim_${Date.now()}.${ext}`);
 
   try {
-    // Call download API (from autodl.js)
     const apiRes = await axios.get(DOWNLOAD_API, {
       params: { url },
       timeout: 30000
     });
     const data = apiRes.data;
 
-    // Extract media URL (from autodl.js logic)
     const mediaURL = data.high_quality || data.url ||
       (data.result && data.result.url) ||
       (data.data && data.data.url);
 
     if (!mediaURL) {
       await bot.deleteMessage(chatId, loading.message_id).catch(() => {});
-      return bot.sendMessage(chatId,
-        `⚠️ *Could not extract video URL!*\nTry a different link.`,
-        { parse_mode: "Markdown" }
-      );
+      return bot.sendMessage(chatId, `⚠️ *Could not extract URL!* Try a different link.`, { parse_mode: "Markdown" });
     }
 
-    // Download the file (from autodl.js stream logic)
     const fileRes = await axios({
       method: "get",
       url: mediaURL,
@@ -242,7 +248,6 @@ async function handleDownload(chatId, url) {
 
     await bot.deleteMessage(chatId, loading.message_id).catch(() => {});
 
-    // Caption (styled like autodl.js messageBody)
     const caption =
       `╭─ 🎀 𝐃𝐎𝐖𝐍𝐋𝐎𝐀𝐃 𝐂𝐎𝐌𝐏𝐋𝐄𝐓𝐄 ─╮\n` +
       `│\n` +
@@ -259,10 +264,7 @@ async function handleDownload(chatId, url) {
     if (isAudio) {
       await bot.sendAudio(chatId, filePath, { caption });
     } else {
-      await bot.sendVideo(chatId, filePath, {
-        caption,
-        supports_streaming: true
-      });
+      await bot.sendVideo(chatId, filePath, { caption, supports_streaming: true });
     }
 
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
@@ -271,21 +273,16 @@ async function handleDownload(chatId, url) {
     await bot.deleteMessage(chatId, loading.message_id).catch(() => {});
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     console.error("Download error:", err.message);
-    bot.sendMessage(chatId,
-      `❌ *Download failed!*\n\`${err.message.slice(0, 200)}\``,
-      { parse_mode: "Markdown" }
-    );
+    bot.sendMessage(chatId, `❌ *Download failed!*\n\`${err.message.slice(0, 200)}\``, { parse_mode: "Markdown" });
   }
 }
 
-// ─────────────────────────────────────────
-//  BABY CHAT HANDLER (baby.js hinata API logic)
-// ─────────────────────────────────────────
-async function handleBabyChat(chatId, text) {
+// ─── BABY CHAT HANDLER (baby.js hinata API) ───
+async function handleBabyChat(chatId, text, replyToId) {
   try {
     const baseUrl = await getBaseApiUrl();
     const res = await axios.post(`${baseUrl}/api/hinata`, {
-      text,
+      text: text,
       style: 3,
       attachments: []
     }, { timeout: 30000 });
@@ -293,11 +290,14 @@ async function handleBabyChat(chatId, text) {
     const reply = res.data?.message;
     if (!reply) return bot.sendMessage(chatId, "error janu🥹");
 
-    bot.sendMessage(chatId, reply);
+    const opts = replyToId ? { reply_to_message_id: replyToId } : {};
+    const sent = await bot.sendMessage(chatId, reply, opts);
+    trackReply(sent.message_id); // track so replies continue chat
 
   } catch (err) {
     console.error("Chat error:", err.message);
-    bot.sendMessage(chatId, "error janu🥹");
+    const opts = replyToId ? { reply_to_message_id: replyToId } : {};
+    bot.sendMessage(chatId, "error janu🥹", opts);
   }
 }
 
