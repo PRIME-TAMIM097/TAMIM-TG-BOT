@@ -1,9 +1,97 @@
+# Render Blueprint Configuration
+# Telegram V1 By Tamim - Automatic Deployment
+
 services:
-  - type: worker
-    name: tamim-tg-bot
+  # Main Bot Service
+  - type: web
+    name: Telegram V1 By Tamim
     runtime: node
+    region: oregon
+    plan: free
+    rootDir: .
     buildCommand: npm install
-    startCommand: node tamim-tg-bot/index.js
+    startCommand: npm start
+    healthCheckPath: /
+    
+    # Environment Variables
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_VERSION
+        value: 18.18.0
+      - key: BOT_TOKEN
+        sync: false
+      - key: TZ
+        value: Asia/Dhaka
+    
+    # Auto-deploy settings
+    autoDeploy: true
+    
+    # Branch settings
+    branch: main
+    
+    # Build filter
+    buildFilter:
+      paths:
+        - src/**/*
+        - package.json
+        - package-lock.json
+        - render.yaml
+      ignoredPaths:
+        - README.md
+        - .gitignore
+        - .github/**/*
+    
+    # Scaling
+    scaling:
+      minInstances: 1
+      maxInstances: 1
+    
+    # Domains
+    domains:
+      - telegram-v1-by-tamim.onrender.com
+    
+    # Headers
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+    
+    # Disk (not needed for free tier)
+    disk:
+      name: tmp
+      mountPath: /tmp
+      sizeGB: 1
+
+  # Background Worker (Optional - for keep-alive)
+  - type: worker
+    name: telegram-bot-worker
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: npm install
+    startCommand: node keepAlive.js
+    envVars:
+      - key: WEBHOOK_URL
+        value: https://telegram-v1-by-tamim.onrender.com
+      - key: PING_INTERVAL
+        value: "840000"
+
+# Database (Optional - if needed later)
+databases:
+  - name: telegram-bot-db
+    plan: free
+    region: oregon
+    databaseName: tamim_bot_db
+    user: tamim_admin
+
+# Static Site (Optional - for dashboard)
+staticSites:
+  - name: telegram-bot-dashboard
+    plan: free
+    buildCommand: echo "Static site ready"
+    publishPath: ./public
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
