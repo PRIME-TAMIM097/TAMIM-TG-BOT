@@ -1,15 +1,15 @@
 {
   "name": "tamim-tg-bot",
   "version": "1.0.0",
-  "description": "TAMIM BOT - Telegram Video Downloader + AI Chat",
-  "main": "index.js",
+  "description": "TAMIM BOT — Telegram Video Downloader + AI Chat",
+  "main": "tamim-tg-bot/index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node tamim-tg-bot/index.js"
   },
   "dependencies": {
     "node-telegram-bot-api": "^0.66.0",
     "axios": "^1.6.0"
   },
-  "author": "Tamim",
+  "author": "—͟͞͞𝐓𝐀𝐌𝐈𝐌",
   "license": "ISC"
 }
