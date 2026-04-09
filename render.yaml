@@ -3,7 +3,7 @@ services:
     name: tamim-tg-bot
     runtime: node
     buildCommand: npm install
-    startCommand: node index.js
+    startCommand: node tamim-tg-bot/index.js
     envVars:
       - key: NODE_ENV
         value: production
