@@ -1,36 +1,16 @@
 {
   "name": "tamim-tg-bot",
   "version": "2.0.0",
-  "description": "Telegram Media Downloader & AI Chat Bot",
+  "description": "TAMIM BOT - Telegram Video Downloader + AI Chat",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js"
+    "start": "node index.js"
   },
   "dependencies": {
-    "node-telegram-bot-api": "^0.64.0",
+    "node-telegram-bot-api": "^0.66.0",
     "axios": "^1.6.0",
-    "express": "^4.18.2"
+    "fs-extra": "^11.2.0"
   },
-  "devDependencies": {
-    "nodemon": "^3.0.0"
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/PRIME-TAMIM097/TAMIM-TG-BOT.git"
-  },
-  "keywords": [
-    "telegram-bot",
-    "media-downloader",
-    "youtube-downloader",
-    "facebook-downloader",
-    "tiktok-downloader",
-    "ai-chatbot",
-    "tamim-bot"
-  ],
-  "author": "TAMIM",
-  "license": "MIT"
+  "author": "Tamim",
+  "license": "ISC"
 }
